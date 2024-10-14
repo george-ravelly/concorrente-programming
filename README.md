@@ -1,1 +1,1 @@
-# concorrente-programming
+# concurrent programming
