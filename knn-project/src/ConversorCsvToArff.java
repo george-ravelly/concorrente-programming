@@ -34,6 +34,7 @@ public class ConversorCsvToArff {
                 writer.newLine();
 
                 // Processa as linhas de dados
+                long count = 3000000;
                 String line;
                 while ((line = reader.readLine()) != null) {
                     // Usa o padrão regex para dividir a linha em colunas (respeitando as aspas duplas)
@@ -43,6 +44,8 @@ public class ConversorCsvToArff {
                         String title = values[1].trim();
                         String text = values[2].trim();
 
+                        if (text.contains("etc.")) continue;
+
                         // Remove aspas ao redor do título e texto, e converte "\n" para real quebra de linha
                         polarity = polarity.replace("\"", "");
                         title = title.replaceAll("^\"|\"$", "").replace("\"\"", "\"").replace("\\n", "\n");
@@ -51,10 +54,14 @@ public class ConversorCsvToArff {
                         text = processString(text);
 
                         // Formata os campos para o formato ARFF
-                        if (title.contains("\"") || text.contains("\"")) continue;
+//                        if (title.contains("\"") || text.contains("\"")) continue;
                         writer.write(polarity + ",\"" + title + "\",\""+ text + "\"");
                         writer.newLine();
                     }
+                    if (count == 0) {
+                        break;
+                    }
+                    count--;
                 }
 
                 System.out.println("Conversão concluída: " + arffFilePath);
@@ -71,7 +78,10 @@ public class ConversorCsvToArff {
     public static String processString(String input) {
         // Remove todas as aspas duplas da string
         // Adiciona aspas duplas no início e no final
-        return input.replaceAll("\"", "'").replace(":-\\", "");
+        return input
+                .replaceAll("\"", "'")
+                .replace(":-\\", "")
+                .replace("\\", " ");
     }
 }
 

@@ -1,3 +1,5 @@
+import weka.core.Attribute;
+import weka.core.DenseInstance;
 import weka.core.Instances;
 import weka.core.converters.ConverterUtils.*;
 import weka.filters.Filter;
@@ -7,46 +9,85 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 public class TextPreprocessing {
     public static Instances loadData(String filePath) {
-        final Instances[] data = new Instances[1];
-        Runnable executor = () -> {
+        ArrayList<Attribute> attributes = new ArrayList<>();
+        // Atributo categórico com classes 1, 2
+        ArrayList<String> classValues = new ArrayList<>();
+        classValues.add("1");
+        classValues.add("2");
+        attributes.add(new Attribute("polarity", classValues));
+
+        attributes.add(new Attribute("title", (ArrayList<String>) null)); // Atributo texto
+        attributes.add(new Attribute("text", (ArrayList<String>) null)); // Atributo texto
+
+
+        // Cria a estrutura do dataset
+        Instances dataset = new Instances("reviews", attributes, 0);
+
+        Runnable runner = () -> {
+            // Define os atributos (colunas)
+            dataset.setClassIndex(0); // Define a última coluna como a classe
+
+            // Lê o arquivo linha por linha
+            BufferedReader reader = null;
             try {
-                DataSource source = new DataSource(filePath);
-                data[0] = source.getDataSet();
-            } catch (Exception e) {
-                System.out.println("erro");
-                System.out.println(e.getMessage());
+                reader = Files.newBufferedReader(Path.of(filePath));
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
             }
+            String line;
+            while (true) {
+                try {
+                    if ((line = reader.readLine()) == null) break;
+                    try {
+                        // Divida a linha por vírgula ou outro delimitador
+                        String[] values = line.replace("\"", "").split(",");
+
+                        if (values.length == 3) {
+                            // Cria uma nova instância e preenche os valores
+                            DenseInstance instance = new DenseInstance(dataset.numAttributes());
+
+                            instance.setValue(attributes.get(0), values[0]); // polarity
+                            instance.setValue(attributes.get(1), values[1]); // title
+                            instance.setValue(attributes.get(2), values[2]); // text
+
+                            // Adiciona a instância ao dataset
+                            instance.setDataset(dataset);
+                            dataset.add(instance);
+                        }
+
+                    } catch (Exception e) {
+                        System.out.println("aqui!");
+                        e.printStackTrace();
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            try {
+                reader.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+
+            // Agora, 'dataset' contém todas as instâncias lidas do arquivo
+            System.out.println("Dataset carregado com " + dataset.numInstances() + " instâncias.");
         };
 
-        var builder = Thread.ofVirtual().name("loading-db", 1).start(executor);
+        var builder = Thread.ofVirtual().name("loading-db", 1).start(runner);
 
-        try {
-            while (true) {
-                if (!builder.isAlive()) break;
-//                System.out.println("waiting...");
+        while (true) {
+            if (!builder.isAlive()) {
+                System.out.println("Finalizado!");
+                break;
             }
-            // Setando a última coluna como a classe (polarity)
-            if (data[0] != null) {
-                data[0].setClassIndex(0);
-            }
-
-            // Aplicando o filtro StringToWordVector para transformar texto em vetores
-            StringToWordVector filter = new StringToWordVector();
-            filter.setInputFormat(data[0]);
-            filter.setTFTransform(true);  // Para aplicar TF-IDF
-            filter.setIDFTransform(true);
-            filter.setLowerCaseTokens(true);  // Para considerar apenas letras minúsculas
-
-            // Filtrando os dados
-            return Filter.useFilter(data[0], filter);
-        } catch (Exception e) {
-            System.out.println("Erro filtrando dados: \n" + e.getMessage());
-            return null;
         }
-    }
 
+        return dataset;
+    }
 }
 
