@@ -1,10 +1,6 @@
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instances;
-import weka.core.converters.ConverterUtils.*;
-import weka.filters.Filter;
-import weka.filters.unsupervised.attribute.StringToWordVector;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;

@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "ml-knn": "^3.0.0",
+    "natural": "^8.0.1"
+  }
+}
