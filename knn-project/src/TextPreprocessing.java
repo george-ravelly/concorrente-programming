@@ -11,21 +11,24 @@ public class TextPreprocessing {
     public static Instances loadData(String filePath) {
         ArrayList<Attribute> attributes = new ArrayList<>();
         // Atributo categórico com classes 1, 2
-        ArrayList<String> classValues = new ArrayList<>();
-        classValues.add("1");
-        classValues.add("2");
-        attributes.add(new Attribute("polarity", classValues));
 
-        attributes.add(new Attribute("title", (ArrayList<String>) null)); // Atributo texto
-        attributes.add(new Attribute("text", (ArrayList<String>) null)); // Atributo texto
+        attributes.add(new Attribute("feature1")); // Atributo texto
+        attributes.add(new Attribute("feature2")); // Atributo texto
+        attributes.add(new Attribute("feature3")); // Atributo texto
+
+        ArrayList<String> classValues = new ArrayList<>();
+        classValues.add("0");
+        classValues.add("1");
+        attributes.add(new Attribute("label", classValues));
 
 
         // Cria a estrutura do dataset
-        Instances dataset = new Instances("reviews", attributes, 0);
+        Instances dataset = new Instances("large_dataset", attributes, 0);
 
         Runnable runner = () -> {
             // Define os atributos (colunas)
-            dataset.setClassIndex(0); // Define a última coluna como a classe
+            // Define a última coluna como a classe
+            dataset.setClassIndex(dataset.numAttributes() - 1);
 
             // Lê o arquivo linha por linha
             BufferedReader reader = null;
@@ -40,15 +43,16 @@ public class TextPreprocessing {
                     if ((line = reader.readLine()) == null) break;
                     try {
                         // Divida a linha por vírgula ou outro delimitador
-                        String[] values = line.replace("\"", "").split(",");
+                        String[] values = line.split(",");
 
-                        if (values.length == 3) {
+                        if (values.length == 4) {
                             // Cria uma nova instância e preenche os valores
                             DenseInstance instance = new DenseInstance(dataset.numAttributes());
 
-                            instance.setValue(attributes.get(0), values[0]); // polarity
-                            instance.setValue(attributes.get(1), values[1]); // title
-                            instance.setValue(attributes.get(2), values[2]); // text
+                            instance.setValue(attributes.get(0), Double.parseDouble(values[0])); //
+                            instance.setValue(attributes.get(1), Double.parseDouble(values[1])); //
+                            instance.setValue(attributes.get(2), Double.parseDouble(values[2])); //
+                            instance.setValue(attributes.get(3), Double.parseDouble(values[3])); //
 
                             // Adiciona a instância ao dataset
                             instance.setDataset(dataset);
