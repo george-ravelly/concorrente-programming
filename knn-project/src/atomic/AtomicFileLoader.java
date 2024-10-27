@@ -56,17 +56,17 @@ public class AtomicFileLoader {
                         instance.setValue(attributes.get(3), Double.parseDouble(values[3])); //
 
                         // Início da seção crítica
-                        lock.lock();
+//                        lock.lock();
                         try {
                             instance.setDataset(dataset.get());
-                            dataset.getAndUpdate(d -> {
+                            dataset.updateAndGet(d -> {
                                 d.add(instance);
                                 return d;
                             });
                             count.increment();
                         } finally {
                             // Liberação do lock para permitir que outra thread acesse a seção crítica
-                            lock.unlock();
+//                            lock.unlock();
                         }
                     }
 

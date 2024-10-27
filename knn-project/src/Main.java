@@ -13,21 +13,17 @@ public class Main {
         System.out.println("Iniciando carregamento e pré-processamento!");
         Instances data = TextPreprocessing
                 .loadData("/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/large_dataset.arff");
-        System.out.println("Arquivo carregado: " + ((System.currentTimeMillis() - tempoInicial)) + "ms");
+        System.out.println("Arquivo carregado: " + ((System.currentTimeMillis() - tempoInicial) / 1000) + "ms");
 
         Runnable runnable = () -> {
             try {
-                // Aplicando o filtro StringToWordVector para transformar texto em vetores
-                // Configurar o PCA
-                Instances pcaInstances = PreProcessing.pca(data);
-
                 // Dividir os dados em treino e teste (80% treino, 20% teste)
-                int trainSize = (int) Math.round(pcaInstances.numInstances() * 0.8);
+                int trainSize = (int) Math.round(data.numInstances() * 0.8);
                 int testSize = (int) Math.round(trainSize * 0.2);
-                pcaInstances.randomize(new Random(42));  // Shuffle dos dados
+                data.randomize(new Random(42));  // Shuffle dos dados
     
-                Instances trainData = new Instances(pcaInstances, 0, trainSize);
-                Instances testData = new Instances(pcaInstances, trainSize, testSize);
+                Instances trainData = new Instances(data, 0, trainSize);
+                Instances testData = new Instances(data, trainSize, testSize);
     
                 // Criar e configurar o modelo KNN
                 IBk knn = new IBk();

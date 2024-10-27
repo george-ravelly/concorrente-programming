@@ -16,9 +16,9 @@ public class VirtualKnnProcessing {
         int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             // Dividir os dados em treino e teste (80% treino, 20% teste)
-            int trainSize = (int) Math.round(numInstances * 0.1);
-            int testSize = (int) Math.round(trainSize * 0.05);
-            System.out.println("Train: "+  trainSize + ", Test: " + testSize);
+            int trainSize = (int) Math.round(numInstances * 0.01);
+            int testSize = (int) Math.round(trainSize * 0.2);
+//            System.out.println("Train: "+  trainSize + ", Test: " + testSize);
             int chunkSize = testSize / numThreads;
             data.randomize(new Random(42));  // Shuffle dos dados
 
@@ -70,12 +70,13 @@ public class VirtualKnnProcessing {
     }
 
     public static void main(String[] args) {
+//        String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/large_dataset.arff";
         String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/arquivoTest.arff";
         System.out.println("Carregando dados na memória! \n >> " + path);
 
-        Instances data = VirtualFileLoader.fileLoader(path);
+        Instances data = VirtualBlockFileLoader.fileLoader(path);
 
-        System.out.println("Arquivo carregado!");
+        System.out.println("Arquivo carregado!" + data.numInstances());
         System.out.println("Iniciando processamento dos dados! \n >> ");
 
         knnProcessing(data, data.numInstances());

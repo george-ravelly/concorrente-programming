@@ -1,20 +1,30 @@
-package platform;
+package callablefuture;
 
+import java_cup.lalr_item_set;
+import platform.PlatformBlockFileLoader;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class PlatformKnnProcessing {
+public class FutureKnnProcessing {
     private static void knnProcessing (Instances data, int numInstances) {
         int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newFixedThreadPool(numThreads)) {
-            // Dividir os dados em treino e teste (80% treino, 20% teste)
+            // Configuração ideal..
+            // int trainSize = (int) Math.round(numInstances * 0.01);
+            // int testSize = (int) Math.round(trainSize * 0.2);
+
+            // Dividir os dados em treino e teste (20% treino, 20% teste)
             int trainSize = (int) Math.round(numInstances * 0.01);
             int testSize = (int) Math.round(trainSize * 0.2);
             System.out.println("Train: "+  trainSize + ", Test: " + testSize);
@@ -30,8 +40,8 @@ public class PlatformKnnProcessing {
             IBk knn = new IBk();
             knn.setKNN(5);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
-            AtomicReference<Double> precision = new AtomicReference<>((double) 0);
-            ReentrantLock lock = new ReentrantLock();
+            List<Future<Double>> futureResultList = new ArrayList<>();
+            Evaluation eval = new Evaluation(trainData);
             for (int i = 0; i < numThreads; i++) {
                 int start = i * chunkSize;
                 int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
@@ -39,15 +49,19 @@ public class PlatformKnnProcessing {
                 Instances chunkTestData = new Instances(testData, start, end - start);
 
                 // Criar tarefa para cada bloco
-                executorService.execute(() -> {
+                futureResultList.add(executorService.submit(() -> {
                     try {
-                        Evaluation eval = new Evaluation(trainData);
                         eval.evaluateModel(knn, chunkTestData);
-                        precision.updateAndGet(v -> (v + eval.pctCorrect()));
+                        return eval.pctCorrect();
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                });
+                }));
+            }
+
+            DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
+            for (Future<Double> results : futureResultList) {
+                precision.accumulate(results.get());
             }
 
             // Finalizar a adição de tarefas e aguardar a conclusão
@@ -69,10 +83,11 @@ public class PlatformKnnProcessing {
     }
 
     public static void main(String[] args) {
+//        String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/arquivoTest.arff";
         String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/large_dataset.arff";
         System.out.println("Carregando dados na memória! \n >> " + path);
 
-        Instances data = PlatformBlockFileLoader.fileLoader(path);
+        Instances data = FutureBlockFileLoader.fileLoader(path);
 
         System.out.println("Arquivo carregado!" + data.numInstances());
         System.out.println("Iniciando processamento dos dados! \n >> ");

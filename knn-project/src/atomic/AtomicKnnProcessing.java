@@ -1,6 +1,5 @@
 package atomic;
 
-import virtual.VirtualFileLoader;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
@@ -16,8 +15,8 @@ public class AtomicKnnProcessing {
         int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             // Dividir os dados em treino e teste (80% treino, 20% teste)
-            int trainSize = (int) Math.round(numInstances * 0.1);
-            int testSize = (int) Math.round(trainSize * 0.05);
+            int trainSize = (int) Math.round(numInstances * 0.01);
+            int testSize = (int) Math.round(trainSize * 0.2);
             System.out.println("Train: "+  trainSize + ", Test: " + testSize);
             int chunkSize = testSize / numThreads;
             data.randomize(new Random(42));  // Shuffle dos dados
