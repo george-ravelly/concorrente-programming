@@ -1,5 +1,4 @@
-const KNN = require('ml-knn');
-const { Worker, isMainThread, parentPort, workerData } = require('worker_threads')
+const { Worker } = require('worker_threads')
 
 const processarKnn = async ({data}) => {
     const startTime = Date.now();
@@ -7,11 +6,13 @@ const processarKnn = async ({data}) => {
     const process = async () => {
 
         // Dividir os dados em treino e teste (80% treino, 20% teste)
-        const trainSize = Math.floor(data.length * 0.1);
+        const trainSize = Math.floor(data.length * 0.01);
         let shuffledData = data.sort(() => 0.5 - Math.random());
 
         let trainData = shuffledData.slice(0, trainSize);
-        let testData = shuffledData.slice(trainSize,trainSize + trainSize * 0.08);
+        let testData = shuffledData.slice(trainSize, trainSize + Math.floor(trainSize * 0.01));
+
+        console.log('train: ', trainSize, 'test: ', Math.floor(trainSize * 0.08))
 
         shuffledData = null;
         // Prepara os dados para o KNN
@@ -25,16 +26,16 @@ const processarKnn = async ({data}) => {
 
         testData = null;
 
-        // Criar e treinar o modelo KNN
-
         // Avaliação do modelo
         let correctPredictions = 0;
 
-        const chunkSize = 1000;
+        const chunkSize = 100;
         let i = 1;
         let workerCount = 1;
         let start = 0;
         let end = chunkSize;
+
+        console.log('Size: ',testFeatures.length)
 
         do {
             const chunkFeatures = testFeatures.slice(start, end);
@@ -42,7 +43,7 @@ const processarKnn = async ({data}) => {
             start = end;
             end += chunkSize;
 
-            const worker = new Worker('./MultiThreadProcessing.js', {
+            const worker = new Worker('/home/george/pessoal/Projetos/concurrent-programming/knn-project/javascript/src/MultiThreadProcessing.js', {
                 workerData: {
                     trainFeatures,
                     trainLabels,
@@ -53,10 +54,9 @@ const processarKnn = async ({data}) => {
 
             worker.on('message', (data) => {
                 correctPredictions += data;
-                console.log(correctPredictions)
                 if (++workerCount === i) {
                     const accuracy = (correctPredictions / testLabels.length) * 100;
-                    console.log('Acuracia do modelo KNN: ' + accuracy + '%');
+                    console.log('Acuracia do modelo KNN: ' + accuracy + '%', 'Tempo total: ', (Date.now() - startTime) + 'ms');
                 }
             })
 
