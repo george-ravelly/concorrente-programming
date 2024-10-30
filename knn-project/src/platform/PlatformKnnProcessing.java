@@ -11,12 +11,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class PlatformKnnProcessing {
-    private static void knnProcessing (Instances data, int numInstances) {
+    public static void knnProcessing (Instances data, int numInstances, double trainLength, double testLength) {
         int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newFixedThreadPool(numThreads)) {
             // Dividir os dados em treino e teste (80% treino, 20% teste)
-            int trainSize = (int) Math.round(numInstances * 0.01);
-            int testSize = (int) Math.round(trainSize * 0.2);
+            int trainSize = (int) Math.round(numInstances * trainLength);
+            int testSize = (int) Math.round(trainSize * testLength);
             System.out.println("Train: "+  trainSize + ", Test: " + testSize);
             int chunkSize = testSize / numThreads;
             data.randomize(new Random(42));  // Shuffle dos dados
@@ -31,7 +31,6 @@ public class PlatformKnnProcessing {
             knn.setKNN(5);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
             AtomicReference<Double> precision = new AtomicReference<>((double) 0);
-            ReentrantLock lock = new ReentrantLock();
             for (int i = 0; i < numThreads; i++) {
                 int start = i * chunkSize;
                 int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
@@ -66,19 +65,6 @@ public class PlatformKnnProcessing {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static void main(String[] args) {
-        String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/large_dataset.arff";
-        System.out.println("Carregando dados na memória! \n >> " + path);
-
-        Instances data = PlatformBlockFileLoader.fileLoader(path);
-
-        System.out.println("Arquivo carregado!" + data.numInstances());
-        System.out.println("Iniciando processamento dos dados! \n >> ");
-
-        knnProcessing(data, data.numInstances());
-
     }
 }
 

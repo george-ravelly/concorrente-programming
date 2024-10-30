@@ -1,6 +1,5 @@
 package virtual;
 
-import utils.PreProcessing;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
@@ -12,13 +11,13 @@ import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class VirtualKnnProcessing {
-    private static void knnProcessing (Instances data, int numInstances) {
+    public static void knnProcessing (Instances data, int numInstances, double trainLength, double testLength) {
         int numThreads = Runtime.getRuntime().availableProcessors();
-        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (var executorService = Executors.newFixedThreadPool(numThreads)) {
             // Dividir os dados em treino e teste (80% treino, 20% teste)
-            int trainSize = (int) Math.round(numInstances * 0.01);
-            int testSize = (int) Math.round(trainSize * 0.2);
-//            System.out.println("Train: "+  trainSize + ", Test: " + testSize);
+            int trainSize = (int) Math.round(numInstances * trainLength);
+            int testSize = (int) Math.round(trainSize * testLength);
+            System.out.println("Train: "+  trainSize + ", Test: " + testSize);
             int chunkSize = testSize / numThreads;
             data.randomize(new Random(42));  // Shuffle dos dados
 
@@ -67,19 +66,5 @@ public class VirtualKnnProcessing {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static void main(String[] args) {
-//        String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/large_dataset.arff";
-        String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/arquivoTest.arff";
-        System.out.println("Carregando dados na memória! \n >> " + path);
-
-        Instances data = VirtualBlockFileLoader.fileLoader(path);
-
-        System.out.println("Arquivo carregado!" + data.numInstances());
-        System.out.println("Iniciando processamento dos dados! \n >> ");
-
-        knnProcessing(data, data.numInstances());
-
     }
 }
