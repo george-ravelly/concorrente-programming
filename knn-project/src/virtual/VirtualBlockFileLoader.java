@@ -38,7 +38,7 @@ public class VirtualBlockFileLoader {
                 var executorService = Executors.newVirtualThreadPerTaskExecutor();
                 var reader = Files.newBufferedReader(Path.of(filePath))
         ) {
-            long linesPerThread = 300000;
+            final long linesPerThread = 300000;
             LongAdder lineCount = new LongAdder();
             dataset.setClassIndex(dataset.numAttributes() - 1);
             Stream<String> lines = reader.lines();
@@ -49,7 +49,7 @@ public class VirtualBlockFileLoader {
                 linesBuffer.add(l);
                 lineCount.increment();
                 if (lineCount.longValue() == linesPerThread)  {
-                    List<String> tempLinesBuffer = new ArrayList<>(linesBuffer);
+                    final List<String> tempLinesBuffer = new ArrayList<>(linesBuffer);
                     executorService.submit(() -> processBlock(tempLinesBuffer, dataset, attributes));
                     linesBuffer.clear();
                     lineCount.reset();

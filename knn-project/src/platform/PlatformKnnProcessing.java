@@ -1,5 +1,6 @@
 package platform;
 
+import utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
@@ -8,43 +9,67 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class PlatformKnnProcessing {
-    public static void knnProcessing (Instances data, int numInstances, double trainLength, double testLength) {
-        int numThreads = Runtime.getRuntime().availableProcessors();
+    public static void knnProcessing (
+            Instances data,
+            int numInstances,
+            double trainLength,
+            double testLength,
+            int k,
+            int time
+    ) {
+        final int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newFixedThreadPool(numThreads)) {
             // Dividir os dados em treino e teste (80% treino, 20% teste)
             int trainSize = (int) Math.round(numInstances * trainLength);
-            int testSize = (int) Math.round(trainSize * testLength);
-            System.out.println("Train: "+  trainSize + ", Test: " + testSize);
-            int chunkSize = testSize / numThreads;
-            data.randomize(new Random(42));  // Shuffle dos dados
 
-            Instances trainData = new Instances(data, 0, trainSize);
-            Instances testData = new Instances(data, trainSize, testSize);
+            data.randomize(new Random(42));
+
+            Instances temp = new Instances(data, 0, trainSize);
+
+            var pca = PreprocessData.applyPCA(temp, numInstances);
+
+            trainSize = (int) Math.round(pca.numInstances() * trainLength);
+            int testSize = (int) Math.round(trainSize * testLength);
+
+            System.out.println("Train: " + trainSize + ", Test: " + testSize);
 
             data = null;
 
-            // Criar e configurar o modelo KNN
-            IBk knn = new IBk();
-            knn.setKNN(5);  // Definir o número de vizinhos (K)
-            knn.buildClassifier(trainData);
-            AtomicReference<Double> precision = new AtomicReference<>((double) 0);
-            for (int i = 0; i < numThreads; i++) {
-                int start = i * chunkSize;
-                int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
+            final Instances testData = new Instances(pca, trainSize, testSize);
 
-                Instances chunkTestData = new Instances(testData, start, end - start);
+            Instances trainData = pca;
+
+            pca = null;
+            final int chunkSize = testSize / numThreads;
+
+            // Criar e configurar o modelo KNN
+            final IBk knn = new IBk();
+            knn.setKNN(k);  // Definir o número de vizinhos (K)
+            knn.buildClassifier(trainData);
+            final DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
+            final Evaluation eval = new Evaluation(trainData);
+            trainData = null;
+            final ReentrantLock lock = new ReentrantLock();
+            for (int i = 0; i < numThreads; i++) {
+                final int start = i * chunkSize;
+                final int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
+
+                final Instances chunkTestData = new Instances(testData, start, end - start);
 
                 // Criar tarefa para cada bloco
                 executorService.execute(() -> {
+                    lock.lock();
                     try {
-                        Evaluation eval = new Evaluation(trainData);
                         eval.evaluateModel(knn, chunkTestData);
-                        precision.updateAndGet(v -> (v + eval.pctCorrect()));
+                        precision.accumulate(eval.pctCorrect());
                     } catch (Exception e) {
                         throw new RuntimeException(e);
+                    } finally {
+                        lock.unlock();
                     }
                 });
             }
@@ -52,7 +77,7 @@ public class PlatformKnnProcessing {
             // Finalizar a adição de tarefas e aguardar a conclusão
             executorService.shutdown();
             try {
-                if (executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                if (executorService.awaitTermination(time, TimeUnit.SECONDS)) {
                     // Calcular a média da precisão acumulada
                     double averagePrecision = precision.get() / numThreads;
                     System.out.println("Acurácia média do modelo KNN: " + averagePrecision + "%");

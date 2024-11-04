@@ -1,5 +1,6 @@
 package serial;
 
+import utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
@@ -7,36 +8,39 @@ import weka.core.Instances;
 import java.util.Random;
 
 public class SerialKnnProcessing {
-    public static void knnProcessing (Instances data, int numInstances, double trainLength, double testLength) {
-        int numThreads = Runtime.getRuntime().availableProcessors();
+    public static void knnProcessing (Instances data, int numInstances, double trainLength, double testLength, int k, int time) throws Exception {
         int trainSize = (int) Math.round(numInstances * trainLength);
-        int testSize = (int) Math.round(trainSize * testLength);
-        System.out.println("Train: "+  trainSize + ", Test: " + testSize);
-        int chunkSize = testSize / numThreads;
-        data.randomize(new Random(42));  // Shuffle dos dados
 
-        Instances trainData = new Instances(data, 0, trainSize);
-        Instances testData = new Instances(data, trainSize, testSize);
+        data.randomize(new Random(42));
+
+        Instances temp = new Instances(data, 0, trainSize);
+
+        var pca = PreprocessData.applyPCA(temp, numInstances);
+
+        trainSize = (int) Math.round(pca.numInstances() * trainLength);
+        int testSize = (int) Math.round(trainSize * testLength);
+
+        System.out.println("Train: " + trainSize + ", Test: " + testSize);
 
         data = null;
+
+        final Instances testData = new Instances(pca, trainSize, testSize);
+
+        Instances trainData = pca;
+
+        pca = null;
+
         try {
         // Criar e configurar o modelo KNN
             IBk knn = new IBk();
             knn.setKNN(5);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
             Evaluation eval = new Evaluation(trainData);
-            double precision = 0;
-            for (int i = 0; i < numThreads; i++) {
-                int start = i * chunkSize;
-                int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
 
-                Instances chunkTestData = new Instances(testData, start, end - start);
-                eval.evaluateModel(knn, chunkTestData);
-                precision += eval.pctCorrect();
+            eval.evaluateModel(knn, testData);
 
-            }
-            double averagePrecision = precision / numThreads;
-            System.out.println("Acurácia média do modelo KNN: " + averagePrecision + "%");
+            double precision = eval.pctCorrect();
+            System.out.println("Acurácia média do modelo KNN: " + precision + "%");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

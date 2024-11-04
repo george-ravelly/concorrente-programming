@@ -17,5 +17,7 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="nz.ac.waikato.cms.weka.stable" level="project" />
+    <orderEntry type="library" name="openjdk.jmc.common" level="project" />
+    <orderEntry type="library" name="github.fommil.netlib.core" level="project" />
   </component>
 </module>
