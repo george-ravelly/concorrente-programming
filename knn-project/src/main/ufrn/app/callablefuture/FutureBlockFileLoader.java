@@ -1,4 +1,4 @@
-package virtual;
+package main.ufrn.app.callablefuture;
 
 import weka.core.Attribute;
 import weka.core.DenseInstance;
@@ -9,13 +9,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
-public class VirtualBlockFileLoader {
+public class FutureBlockFileLoader {
     private static final Lock lock = new ReentrantLock();
 
     public static Instances fileLoader (String filePath) {
@@ -38,30 +41,58 @@ public class VirtualBlockFileLoader {
                 var executorService = Executors.newVirtualThreadPerTaskExecutor();
                 var reader = Files.newBufferedReader(Path.of(filePath))
         ) {
-            final long linesPerThread = 300000;
+            long linesPerThread = 300000;
             LongAdder lineCount = new LongAdder();
             dataset.setClassIndex(dataset.numAttributes() - 1);
             Stream<String> lines = reader.lines();
 
             List<String> linesBuffer = new ArrayList<>();
 
-            lines.forEach(l -> {
+            List<Future<List<DenseInstance>>> futureList = new ArrayList<>();
+
+            for (String l : lines.toList()) {
                 linesBuffer.add(l);
                 lineCount.increment();
                 if (lineCount.longValue() == linesPerThread)  {
-                    final List<String> tempLinesBuffer = new ArrayList<>(linesBuffer);
-                    executorService.submit(() -> processBlock(tempLinesBuffer, dataset, attributes));
+                    List<String> tempLinesBuffer = new ArrayList<>(linesBuffer);
+                    futureList.add(executorService.submit(() -> processBlock(tempLinesBuffer, attributes)));
                     linesBuffer.clear();
                     lineCount.reset();
                 }
-            });
+            }
+            lines.close();
+
             // Adiciona qualquer bloco restante para processamento
             if (!linesBuffer.isEmpty()) {
                 List<String> linesToProcess = new ArrayList<>(linesBuffer);
-                executorService.submit(() -> processBlock(linesToProcess, dataset, attributes));
+                futureList.add(executorService.submit(() -> processBlock(linesToProcess, attributes)));
             }
-            lines.close();
+
+            for (Future<List<DenseInstance>> denseInstances : futureList) {
+                try {
+                    List<DenseInstance> instances = denseInstances.get();
+                    for (DenseInstance inst : instances) {
+                        if (inst != null) {
+                            inst.setDataset(dataset);
+                            dataset.add(inst);
+                        }
+                    }
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
             executorService.shutdown();
+
+            try {
+                if (executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.out.println("Concluído!");
+                } else {
+                    System.err.println("Tempo limite excedido para as threads serem concluídas.");
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -69,28 +100,20 @@ public class VirtualBlockFileLoader {
         return dataset;
     }
 
-    public static void processBlock(List<String> linesBuffer, Instances dataset, ArrayList<Attribute> attributes) {
-        linesBuffer.forEach(line -> {
+    public static List<DenseInstance> processBlock(List<String> linesBuffer, ArrayList<Attribute> attributes) {
+        var lista = linesBuffer.stream().map(line -> {
             String[] values = line.split(",");
 
             if (values.length == 4) {
-                DenseInstance instance = new DenseInstance(dataset.numAttributes());
-
+                DenseInstance instance = new DenseInstance(attributes.size());
                 instance.setValue(attributes.get(0), Double.parseDouble(values[0])); //
                 instance.setValue(attributes.get(1), Double.parseDouble(values[1])); //
                 instance.setValue(attributes.get(2), Double.parseDouble(values[2])); //
                 instance.setValue(attributes.get(3), Double.parseDouble(values[3])); //
-
-                // Início da seção crítica
-                lock.lock();
-                try {
-                    instance.setDataset(dataset);
-                    dataset.add(instance);
-                } finally {
-                    // Liberação do lock para permitir que outra thread acesse a seção crítica
-                    lock.unlock();
-                }
+                return instance;
             }
-        });
+            return null;
+        }).toList();
+        return lista;
     }
 }

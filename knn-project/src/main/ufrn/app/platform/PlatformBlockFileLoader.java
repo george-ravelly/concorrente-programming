@@ -1,4 +1,4 @@
-package callablefuture;
+package main.ufrn.app.platform;
 
 import weka.core.Attribute;
 import weka.core.DenseInstance;
@@ -8,19 +8,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
-public class FutureBlockFileLoader {
+public class PlatformBlockFileLoader {
     private static final Lock lock = new ReentrantLock();
+    private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
     public static Instances fileLoader (String filePath) {
         ArrayList<Attribute> attributes = new ArrayList<>();
@@ -39,61 +36,33 @@ public class FutureBlockFileLoader {
         Instances dataset = new Instances("large_dataset", attributes, 0);
 
         try (
-                var executorService = Executors.newVirtualThreadPerTaskExecutor();
+                var executorService = Executors.newFixedThreadPool(numThreads);
                 var reader = Files.newBufferedReader(Path.of(filePath))
         ) {
-            long linesPerThread = 300000;
+            long linesPerThread = 1000;
             LongAdder lineCount = new LongAdder();
             dataset.setClassIndex(dataset.numAttributes() - 1);
             Stream<String> lines = reader.lines();
 
             List<String> linesBuffer = new ArrayList<>();
 
-            List<Future<List<DenseInstance>>> futureList = new ArrayList<>();
-
-            for (String l : lines.toList()) {
+            lines.forEach(l -> {
                 linesBuffer.add(l);
                 lineCount.increment();
                 if (lineCount.longValue() == linesPerThread)  {
                     List<String> tempLinesBuffer = new ArrayList<>(linesBuffer);
-                    futureList.add(executorService.submit(() -> processBlock(tempLinesBuffer, attributes)));
+                    executorService.submit(() -> processBlock(tempLinesBuffer, dataset, attributes));
                     linesBuffer.clear();
                     lineCount.reset();
                 }
-            }
-            lines.close();
-
+            });
             // Adiciona qualquer bloco restante para processamento
             if (!linesBuffer.isEmpty()) {
                 List<String> linesToProcess = new ArrayList<>(linesBuffer);
-                futureList.add(executorService.submit(() -> processBlock(linesToProcess, attributes)));
+                executorService.submit(() -> processBlock(linesToProcess, dataset, attributes));
             }
-
-            for (Future<List<DenseInstance>> denseInstances : futureList) {
-                try {
-                    List<DenseInstance> instances = denseInstances.get();
-                    for (DenseInstance inst : instances) {
-                        if (inst != null) {
-                            inst.setDataset(dataset);
-                            dataset.add(inst);
-                        }
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
+            lines.close();
             executorService.shutdown();
-
-            try {
-                if (executorService.awaitTermination(60, TimeUnit.SECONDS)) {
-                    System.out.println("Concluído!");
-                } else {
-                    System.err.println("Tempo limite excedido para as threads serem concluídas.");
-                }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -101,20 +70,28 @@ public class FutureBlockFileLoader {
         return dataset;
     }
 
-    public static List<DenseInstance> processBlock(List<String> linesBuffer, ArrayList<Attribute> attributes) {
-        var lista = linesBuffer.stream().map(line -> {
+    public static void processBlock(List<String> linesBuffer, Instances dataset, ArrayList<Attribute> attributes) {
+        linesBuffer.forEach(line -> {
             String[] values = line.split(",");
 
             if (values.length == 4) {
-                DenseInstance instance = new DenseInstance(attributes.size());
+                DenseInstance instance = new DenseInstance(dataset.numAttributes());
+
                 instance.setValue(attributes.get(0), Double.parseDouble(values[0])); //
                 instance.setValue(attributes.get(1), Double.parseDouble(values[1])); //
                 instance.setValue(attributes.get(2), Double.parseDouble(values[2])); //
                 instance.setValue(attributes.get(3), Double.parseDouble(values[3])); //
-                return instance;
+
+                // Início da seção crítica
+                lock.lock();
+                try {
+                    instance.setDataset(dataset);
+                    dataset.add(instance);
+                } finally {
+                    // Liberação do lock para permitir que outra thread acesse a seção crítica
+                    lock.unlock();
+                }
             }
-            return null;
-        }).toList();
-        return lista;
+        });
     }
 }

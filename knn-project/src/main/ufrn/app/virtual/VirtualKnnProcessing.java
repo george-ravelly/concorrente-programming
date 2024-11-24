@@ -1,6 +1,6 @@
-package platform;
+package main.ufrn.app.virtual;
 
-import utils.PreprocessData;
+import main.ufrn.app.utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
@@ -8,11 +8,10 @@ import weka.core.Instances;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class PlatformKnnProcessing {
+public class VirtualKnnProcessing {
     public static void knnProcessing (
             Instances data,
             int numInstances,
@@ -23,7 +22,6 @@ public class PlatformKnnProcessing {
     ) {
         final int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newFixedThreadPool(numThreads)) {
-            // Dividir os dados em treino e teste (80% treino, 20% teste)
             int trainSize = (int) Math.round(numInstances * trainLength);
 
             data.randomize(new Random(42));
@@ -50,13 +48,13 @@ public class PlatformKnnProcessing {
             final IBk knn = new IBk();
             knn.setKNN(k);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
-            final DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
+            DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
+            final ReentrantLock lock = new ReentrantLock();
             final Evaluation eval = new Evaluation(trainData);
             trainData = null;
-            final ReentrantLock lock = new ReentrantLock();
             for (int i = 0; i < numThreads; i++) {
-                final int start = i * chunkSize;
-                final int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
+                int start = i * chunkSize;
+                int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
 
                 final Instances chunkTestData = new Instances(testData, start, end - start);
 
@@ -92,4 +90,3 @@ public class PlatformKnnProcessing {
         }
     }
 }
-

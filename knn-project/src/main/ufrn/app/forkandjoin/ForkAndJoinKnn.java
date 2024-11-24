@@ -1,16 +1,14 @@
-package forkandjoin;
+package main.ufrn.app.forkandjoin;
 
-import utils.PreprocessData;
+import main.ufrn.app.utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
 
 import java.util.Random;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ForkAndJoinKnn {

@@ -1,5 +1,6 @@
-package platform;
+package main.ufrn.app.virtual;
 
+import org.openjdk.jmh.annotations.Benchmark;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instances;
@@ -15,10 +16,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
-public class PlatformBlockFileLoader {
+public class VirtualBlockFileLoader {
     private static final Lock lock = new ReentrantLock();
-    private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
+//    @Benchmark
     public static Instances fileLoader (String filePath) {
         ArrayList<Attribute> attributes = new ArrayList<>();
 
@@ -36,10 +37,10 @@ public class PlatformBlockFileLoader {
         Instances dataset = new Instances("large_dataset", attributes, 0);
 
         try (
-                var executorService = Executors.newFixedThreadPool(numThreads);
+                var executorService = Executors.newVirtualThreadPerTaskExecutor();
                 var reader = Files.newBufferedReader(Path.of(filePath))
         ) {
-            long linesPerThread = 1000;
+            final long linesPerThread = 300000;
             LongAdder lineCount = new LongAdder();
             dataset.setClassIndex(dataset.numAttributes() - 1);
             Stream<String> lines = reader.lines();
@@ -50,7 +51,7 @@ public class PlatformBlockFileLoader {
                 linesBuffer.add(l);
                 lineCount.increment();
                 if (lineCount.longValue() == linesPerThread)  {
-                    List<String> tempLinesBuffer = new ArrayList<>(linesBuffer);
+                    final List<String> tempLinesBuffer = new ArrayList<>(linesBuffer);
                     executorService.submit(() -> processBlock(tempLinesBuffer, dataset, attributes));
                     linesBuffer.clear();
                     lineCount.reset();

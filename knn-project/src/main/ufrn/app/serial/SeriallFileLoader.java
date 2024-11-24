@@ -1,4 +1,4 @@
-package serial;
+package main.ufrn.app.serial;
 
 import weka.core.Attribute;
 import weka.core.DenseInstance;

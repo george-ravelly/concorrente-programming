@@ -1,6 +1,6 @@
-package serial;
+package main.ufrn.app.serial;
 
-import utils.PreprocessData;
+import main.ufrn.app.utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;

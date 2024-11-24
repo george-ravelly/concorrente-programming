@@ -1,17 +1,19 @@
-package virtual;
+package main.ufrn.app.callablefuture;
 
-import utils.PreprocessData;
+import main.ufrn.app.utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.DoubleAccumulator;
-import java.util.concurrent.locks.ReentrantLock;
 
-public class VirtualKnnProcessing {
+public class FutureKnnProcessing {
     public static void knnProcessing (
             Instances data,
             int numInstances,
@@ -20,8 +22,9 @@ public class VirtualKnnProcessing {
             int k,
             int time
     ) {
-        final int numThreads = Runtime.getRuntime().availableProcessors();
+        int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newFixedThreadPool(numThreads)) {
+            // Dividir os dados em treino e teste (80% treino, 20% teste)
             int trainSize = (int) Math.round(numInstances * trainLength);
 
             data.randomize(new Random(42));
@@ -48,25 +51,28 @@ public class VirtualKnnProcessing {
             final IBk knn = new IBk();
             knn.setKNN(k);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
-            DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
-            final ReentrantLock lock = new ReentrantLock();
+            List<Future<Double>> futureResultList = new ArrayList<>();
             final Evaluation eval = new Evaluation(trainData);
-            trainData = null;
             for (int i = 0; i < numThreads; i++) {
                 int start = i * chunkSize;
                 int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
 
-                final Instances chunkTestData = new Instances(testData, start, end - start);
+                Instances chunkTestData = new Instances(testData, start, end - start);
 
                 // Criar tarefa para cada bloco
-                executorService.execute(() -> {
+                futureResultList.add(executorService.submit(() -> {
                     try {
                         eval.evaluateModel(knn, chunkTestData);
-                        precision.accumulate(eval.pctCorrect());
+                        return eval.pctCorrect();
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                });
+                }));
+            }
+
+            DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
+            for (Future<Double> results : futureResultList) {
+                precision.accumulate(results.get());
             }
 
             // Finalizar a adição de tarefas e aguardar a conclusão
@@ -87,3 +93,4 @@ public class VirtualKnnProcessing {
         }
     }
 }
+

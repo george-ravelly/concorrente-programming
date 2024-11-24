@@ -1,23 +1,16 @@
-package callablefuture;
+package main.ufrn.app.atomic;
 
-import java_cup.lalr_item_set;
-import platform.PlatformBlockFileLoader;
-import utils.PreprocessData;
+import main.ufrn.app.utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.DoubleAccumulator;
-import java.util.concurrent.locks.ReentrantLock;
 
-public class FutureKnnProcessing {
+public class AtomicKnnProcessing {
     public static void knnProcessing (
             Instances data,
             int numInstances,
@@ -49,34 +42,32 @@ public class FutureKnnProcessing {
             Instances trainData = pca;
 
             pca = null;
+
             final int chunkSize = testSize / numThreads;
 
             // Criar e configurar o modelo KNN
             final IBk knn = new IBk();
             knn.setKNN(k);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
-            List<Future<Double>> futureResultList = new ArrayList<>();
+            final AtomicReference<Double> precision = new AtomicReference<>((double) 0);
+
             final Evaluation eval = new Evaluation(trainData);
+            trainData = null;
             for (int i = 0; i < numThreads; i++) {
                 int start = i * chunkSize;
                 int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
 
-                Instances chunkTestData = new Instances(testData, start, end - start);
+                final Instances chunkTestData = new Instances(testData, start, end - start);
 
                 // Criar tarefa para cada bloco
-                futureResultList.add(executorService.submit(() -> {
+                executorService.execute(() -> {
                     try {
                         eval.evaluateModel(knn, chunkTestData);
-                        return eval.pctCorrect();
+                        precision.updateAndGet(v -> (v + eval.pctCorrect()));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                }));
-            }
-
-            DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
-            for (Future<Double> results : futureResultList) {
-                precision.accumulate(results.get());
+                });
             }
 
             // Finalizar a adição de tarefas e aguardar a conclusão
@@ -97,4 +88,3 @@ public class FutureKnnProcessing {
         }
     }
 }
-

@@ -1,7 +1,6 @@
-package utils;
+package main.ufrn.app.utils;
 
 import weka.attributeSelection.PrincipalComponents;
-import weka.core.Instance;
 import weka.core.Instances;
 
 public class PreProcessing {

@@ -1,4 +1,4 @@
-package atomic;
+package main.ufrn.app.atomic;
 
 import weka.core.Attribute;
 import weka.core.DenseInstance;

@@ -1,6 +1,7 @@
-package atomic;
+package main.ufrn.app.platform;
 
-import utils.PreprocessData;
+import org.openjdk.jmh.annotations.*;
+import main.ufrn.app.utils.PreprocessData;
 import weka.classifiers.evaluation.Evaluation;
 import weka.classifiers.lazy.IBk;
 import weka.core.Instances;
@@ -8,11 +9,15 @@ import weka.core.Instances;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class AtomicKnnProcessing {
+public class PlatformKnnProcessing {
+//    @Benchmark
+//    @BenchmarkMode(Mode.AverageTime)
+//    @Fork(value = 1)
+//    @Warmup(iterations = 2)
+//    @Measurement(iterations = 1)
     public static void knnProcessing (
             Instances data,
             int numInstances,
@@ -21,7 +26,7 @@ public class AtomicKnnProcessing {
             int k,
             int time
     ) {
-        int numThreads = Runtime.getRuntime().availableProcessors();
+        final int numThreads = Runtime.getRuntime().availableProcessors();
         try (var executorService = Executors.newFixedThreadPool(numThreads)) {
             // Dividir os dados em treino e teste (80% treino, 20% teste)
             int trainSize = (int) Math.round(numInstances * trainLength);
@@ -44,30 +49,32 @@ public class AtomicKnnProcessing {
             Instances trainData = pca;
 
             pca = null;
-
             final int chunkSize = testSize / numThreads;
 
             // Criar e configurar o modelo KNN
             final IBk knn = new IBk();
             knn.setKNN(k);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
-            final AtomicReference<Double> precision = new AtomicReference<>((double) 0);
-
+            final DoubleAccumulator precision = new DoubleAccumulator(Double::sum, 0);
             final Evaluation eval = new Evaluation(trainData);
             trainData = null;
+            final ReentrantLock lock = new ReentrantLock();
             for (int i = 0; i < numThreads; i++) {
-                int start = i * chunkSize;
-                int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
+                final int start = i * chunkSize;
+                final int end = (i == numThreads - 1) ? testSize : (i + 1) * chunkSize;
 
                 final Instances chunkTestData = new Instances(testData, start, end - start);
 
                 // Criar tarefa para cada bloco
                 executorService.execute(() -> {
+                    lock.lock();
                     try {
                         eval.evaluateModel(knn, chunkTestData);
-                        precision.updateAndGet(v -> (v + eval.pctCorrect()));
+                        precision.accumulate(eval.pctCorrect());
                     } catch (Exception e) {
                         throw new RuntimeException(e);
+                    } finally {
+                        lock.unlock();
                     }
                 });
             }
@@ -90,3 +97,4 @@ public class AtomicKnnProcessing {
         }
     }
 }
+

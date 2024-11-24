@@ -1,4 +1,4 @@
-package utils;
+package main.ufrn.app.utils;
 
 import weka.core.Instances;
 import weka.filters.Filter;
