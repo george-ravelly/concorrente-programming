@@ -1,6 +1,6 @@
 const { Worker } = require('worker_threads')
 
-const processarKnn = async ({data}) => {
+const knnProcessing = async ({data}) => {
     const startTime = Date.now();
 
     const process = async () => {
@@ -79,4 +79,4 @@ const processarKnn = async ({data}) => {
     console.log('Finalizado! Tempo total: ' + (Date.now() - startTime) + 'ms');
 }
 
-module.exports = processarKnn;
+module.exports = knnProcessing;

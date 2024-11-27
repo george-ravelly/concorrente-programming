@@ -21,7 +21,7 @@ public class VirtualKnnProcessing {
             int time
     ) {
         final int numThreads = Runtime.getRuntime().availableProcessors();
-        try (var executorService = Executors.newFixedThreadPool(numThreads)) {
+        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             int trainSize = (int) Math.round(numInstances * trainLength);
 
             data.randomize(new Random(42));

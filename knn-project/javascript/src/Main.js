@@ -1,10 +1,10 @@
 const path = require('path');
-const textPreprocessing = require('./AsyncFileReader.js');
+const fileLoader = require('./AsyncFileReader.js');
 
-const processarKnn = require('./KnnProcess');
+const knnProcessing = require('./KnnProcess');
 
-const pathFile = path.resolve('/home/george/pessoal/Projetos/concurrent-programming/knn-project/src/main/resourses/large_dataset.arff');
+const pathFile = path.resolve('/home/george/pessoal/Projetos/concurrent-programming/knn-project/src/main/resources/large_dataset.arff');
 
 
 console.log('Iniciando carregamento e pré-processamento!');
-(async () => await processarKnn(await textPreprocessing(pathFile)))();
+(async () => await knnProcessing(await fileLoader(pathFile)))();

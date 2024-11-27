@@ -1,6 +1,6 @@
 const fs = require('fs');
 const readline = require('readline');
-const textPreprocessing = async (filePath) => {
+const fileLoader = async (filePath) => {
     // Define os atributos do dataset
     const attributes = ['feature1', 'feature2', 'feature3', 'label'];
 
@@ -38,4 +38,4 @@ const textPreprocessing = async (filePath) => {
     console.log(`Dataset carregado com ${dataset.data.length} instâncias.`);
     return dataset;
 }
-module.exports = textPreprocessing;
+module.exports = fileLoader;

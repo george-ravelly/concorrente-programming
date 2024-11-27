@@ -5,7 +5,7 @@ const path = require('path');
 
 const processarKnn = require('./KnnProcess');
 
-const pathFile = path.resolve('/home/george/pessoal/Projetos/concurrent-programming/knn-project/resourse/large_dataset.arff');
+const pathFile = path.resolve('/home/george/pessoal/Projetos/concurrent-programming/knn-project/src/main/resources/large_dataset.arff');
 const numWorkers = 4; // Número de workers que você quer usar
 
 if (isMainThread) {

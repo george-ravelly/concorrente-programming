@@ -12,7 +12,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
 //        org.openjdk.jmh.main.ufrn.app.Main.main(args);
         // Carregar e pré-processar os dados
-        String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/src/main/resourses/large_dataset.arff";
+        String path = "/home/george/pessoal/Projetos/concurrent-programming/knn-project/src/main/resources/large_dataset.arff";
         System.out.println("Carregando dados na memória! \n >> " + path);
 
 

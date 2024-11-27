@@ -33,7 +33,7 @@ public class SerialKnnProcessing {
         try {
         // Criar e configurar o modelo KNN
             IBk knn = new IBk();
-            knn.setKNN(5);  // Definir o número de vizinhos (K)
+            knn.setKNN(k);  // Definir o número de vizinhos (K)
             knn.buildClassifier(trainData);
             Evaluation eval = new Evaluation(trainData);
 

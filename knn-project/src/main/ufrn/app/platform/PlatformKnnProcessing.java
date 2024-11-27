@@ -13,11 +13,6 @@ import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class PlatformKnnProcessing {
-//    @Benchmark
-//    @BenchmarkMode(Mode.AverageTime)
-//    @Fork(value = 1)
-//    @Warmup(iterations = 2)
-//    @Measurement(iterations = 1)
     public static void knnProcessing (
             Instances data,
             int numInstances,
