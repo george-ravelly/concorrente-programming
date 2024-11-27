@@ -2,6 +2,8 @@ package main.ufrn.app;
 
 import main.ufrn.app.platform.PlatformKnnProcessing;
 
+import main.ufrn.app.serial.SerialKnnProcessing;
+import main.ufrn.app.serial.SeriallFileLoader;
 import main.ufrn.app.virtual.VirtualBlockFileLoader;
 import weka.core.Instances;
 
@@ -14,7 +16,7 @@ public class Main {
         System.out.println("Carregando dados na memória! \n >> " + path);
 
 
-        final Instances data = VirtualBlockFileLoader.fileLoader(path);
+        final Instances data = SeriallFileLoader.fileLoader(path);
 
         System.out.println("Arquivo carregado!" + data.numInstances());
         System.out.println("Iniciando processamento dos dados! \n >> ");
@@ -24,7 +26,6 @@ public class Main {
         int k = 3;
         int time = 120;
 
-        PlatformKnnProcessing.knnProcessing(data, data.numInstances(), trainSize, testSize, k, time);
-//        org.openjdk.jmh.main.ufrn.app.Main.main(args);
+        SerialKnnProcessing.knnProcessing(data, data.numInstances(), trainSize, testSize, k, time);
     }
 }
